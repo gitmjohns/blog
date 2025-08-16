@@ -1,52 +1,49 @@
-import openai
-import datetime
 import os
+import openai
+from datetime import datetime
 from pytrends.request import TrendReq
 import random
 
-# Configure OpenAI
+# Load API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Get trending topics from Google Trends
+# Fetch trending topic
 pytrends = TrendReq(hl="en-US", tz=360)
-trending_searches = pytrends.trending_searches(pn="united_states")
-topics = trending_searches[0].tolist()
-topic = random.choice(topics)  # pick a random trending topic
 
-# Ask OpenAI to generate a blog post
-prompt = f"""
-Write a detailed, SEO-friendly blog post about the trending topic: "{topic}".
-- Length: 600-800 words
-- Include a clear introduction, main body, and conclusion
-- Use a neutral, informative tone
-- Suggest why the topic is important right now
-"""
+try:
+    trending_searches = pytrends.today_searches(pn="US")
+    topics = trending_searches.tolist()
+except Exception as e:
+    print("⚠️ Could not fetch Google Trends, using fallback topic.")
+    topics = ["Technology news", "Global events", "Popular culture"]
+
+topic = random.choice(topics)
+print(f"📝 Selected topic: {topic}")
+
+# Generate a blog post using OpenAI
+prompt = f"Write a short, engaging blog post about the trending topic: {topic}. Keep it under 400 words."
 
 response = openai.ChatCompletion.create(
     model="gpt-3.5-turbo",
     messages=[{"role": "user", "content": prompt}],
-    max_tokens=1000,
+    max_tokens=500,
     temperature=0.7,
 )
 
-post_content = response.choices[0].message["content"].strip()
+post_content = response["choices"][0]["message"]["content"]
 
-# Prepare file path
-today = datetime.datetime.utcnow()
-filename = today.strftime("_posts/%Y-%m-%d-") + topic.replace(" ", "-") + ".md"
+# Format as Jekyll blog post
+date = datetime.now().strftime("%Y-%m-%d")
+filename = f"_posts/{date}-{topic.replace(' ', '-')}.md"
 
-# Front matter for Jekyll
 front_matter = f"""---
 layout: post
 title: "{topic}"
-date: {today.strftime("%Y-%m-%d %H:%M:%S")} +0000
-categories: trending
+date: {date}
 ---
-
 """
 
-# Write the blog post
 with open(filename, "w", encoding="utf-8") as f:
     f.write(front_matter + "\n" + post_content)
 
-print(f"✅ New post created: {filename}")
+print(f"✅ Blog post generated: {filename}")
