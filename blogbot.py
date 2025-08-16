@@ -1,11 +1,11 @@
 import os
-import openai
+from openai import OpenAI
 from datetime import datetime
 from pytrends.request import TrendReq
 import random
 
-# Load API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Fetch trending topic
 pytrends = TrendReq(hl="en-US", tz=360)
@@ -23,18 +23,19 @@ print(f"📝 Selected topic: {topic}")
 # Generate a blog post using OpenAI
 prompt = f"Write a short, engaging blog post about the trending topic: {topic}. Keep it under 400 words."
 
-response = openai.ChatCompletion.create(
+response = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[{"role": "user", "content": prompt}],
     max_tokens=500,
     temperature=0.7,
 )
 
-post_content = response["choices"][0]["message"]["content"]
+post_content = response.choices[0].message.content
 
 # Format as Jekyll blog post
 date = datetime.now().strftime("%Y-%m-%d")
-filename = f"_posts/{date}-{topic.replace(' ', '-')}.md"
+safe_topic = "".join(c if c.isalnum() or c in "-_" else "-" for c in topic)
+filename = f"_posts/{date}-{safe_topic}.md"
 
 front_matter = f"""---
 layout: post
