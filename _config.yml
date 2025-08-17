@@ -1,6 +1,11 @@
-
-title: My Automated Blog
-description: A blog generated automatically.
-baseurl: ""
-url: ""
+title: "My Auto Blog"
+description: "An automated blog powered by GitHub Actions and OpenAI"
 theme: minima
+
+# Important: make sure this matches your repo name
+baseurl: "/blog"
+url: "https://gitmjohns.github.io"
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
