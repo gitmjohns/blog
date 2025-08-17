@@ -1,56 +1,44 @@
 import os
-from openai import OpenAI
-from datetime import datetime
-from pytrends.request import TrendReq
 import random
+from openai import OpenAI
+from datetime import date
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Try fetching trending topics
-pytrends = TrendReq(hl="en-US", tz=360)
-try:
-    trending_searches = pytrends.today_searches(pn="US")
-    topics = trending_searches.tolist()
-except Exception:
-    print("⚠️ Could not fetch Google Trends, using fallback topic.")
-    topics = ["Technology news", "Global events", "Popular culture"]
+# List of fallback topics
+topics = [
+    "Technology news",
+    "Health and wellness",
+    "Science breakthroughs",
+    "Popular culture",
+    "Global events",
+    "Business and economy",
+    "Sports highlights",
+    "Travel and lifestyle"
+]
 
+# Pick a random topic
 topic = random.choice(topics)
 print(f"📝 Selected topic: {topic}")
 
-# Prompt for OpenAI
-prompt = f"Write a short, engaging blog post about the trending topic: {topic}. Keep it under 400 words."
+# Ask OpenAI for a blog post
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You are a helpful writing assistant that creates short blog posts."},
+        {"role": "user", "content": f"Write a concise, engaging blog post (200-300 words) about {topic}."}
+    ]
+)
 
-# Generate post via OpenAI
-try:
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=500,
-        temperature=0.7,
-    )
-    # Get content safely
-    post_content = response.choices[0].message.get("content") or response.choices[0].text
-except Exception as e:
-    print(f"⚠️ OpenAI API failed: {e}")
-    post_content = f"This is a fallback post about {topic}."
+blog_content = response.choices[0].message.content
 
-# Format for Jekyll
-date = datetime.now().strftime("%Y-%m-%d")
-safe_topic = "".join(c if c.isalnum() or c in "-_" else "-" for c in topic)
-filename = f"_posts/{date}-{safe_topic}.md"
+# Format blog post in Jekyll markdown format
+today = date.today()
+filename = f"_posts/{today}-" + topic.replace(" ", "-") + ".md"
 
-front_matter = f"""---
-layout: post
-title: "{topic}"
-date: {date}
----
-"""
+with open(filename, "w") as f:
+    f.write(f"---\nlayout: post\ntitle: {topic}\ndate: {today}\n---\n")
+    f.write(blog_content)
 
-# Write the file
-os.makedirs("_posts", exist_ok=True)
-with open(filename, "w", encoding="utf-8") as f:
-    f.write(front_matter + "\n" + post_content)
-
-print(f"✅ Blog post generated: {filename}")
+print(f"✅ Blog post saved to {filename}")
