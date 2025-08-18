@@ -1,40 +1,33 @@
-name: BlogBot
+name: Blog Bot
 
 on:
   schedule:
-    - cron: "0 */4 * * *"  # runs every 4 hours
-  workflow_dispatch:  # allows manual run
+    - cron: "0 */6 * * *"  # every 6 hours
+  workflow_dispatch:
 
 jobs:
-  generate-post:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # allows committing back to repo
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install --upgrade openai pytrends
+          pip install feedparser
 
-      - name: Run BlogBot
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Run blogbot
         run: python blogbot.py
 
-      - name: Commit new post
+      - name: Commit and push if changed
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add _posts/
-          git commit -m "Add new auto-generated post" || echo "No changes to commit"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "Add new blog post" || echo "No changes to commit"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
