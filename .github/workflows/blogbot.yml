@@ -2,32 +2,21 @@ name: Blog Bot
 
 on:
   schedule:
-    - cron: "0 */6 * * *"  # every 6 hours
-  workflow_dispatch:
+    - cron: '0 */6 * * *'  # every 6 hours
+  workflow_dispatch:       # allows manual run too
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
-
+          python-version: '3.x'
       - name: Install dependencies
-        run: |
-          pip install feedparser
-
-      - name: Run blogbot
+        run: pip install feedparser
+      - name: Run python blogbot.py
         run: python blogbot.py
-
-      - name: Commit and push if changed
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add .
-          git commit -m "Add new blog post" || echo "No changes to commit"
-          git push
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
