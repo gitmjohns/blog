@@ -2,50 +2,52 @@ import feedparser
 import os
 from datetime import datetime
 import random
-import re
 
-# Configuration
-POSTS_DIR = "_posts"
-NUM_ARTICLES_PER_POST = 3  # how many RSS entries per post
-os.makedirs(POSTS_DIR, exist_ok=True)
-
-# RSS feeds
+# Multiple RSS feeds for diversity
 RSS_FEEDS = [
     "http://feeds.bbci.co.uk/news/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-    "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
-    "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+    "https://feeds.npr.org/1001/rss.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.theguardian.com/world/rss"
 ]
 
-# Pick a random feed
+# Choose a random feed each run
 feed_url = random.choice(RSS_FEEDS)
-print(f"📡 Fetching from: {feed_url}")
 feed = feedparser.parse(feed_url)
 
 if not feed.entries:
-    print("⚠️ No entries found in this feed.")
+    print("⚠️ No articles found.")
     exit()
 
-# Take first NUM_ARTICLES_PER_POST entries
-selected_entries = feed.entries[:NUM_ARTICLES_PER_POST]
+# Pick a random article from the feed
+entry = random.choice(feed.entries)
 
-# Prepare post content
-date = datetime.now().strftime("%Y-%m-%d")
-titles_for_filename = "-".join([entry.title[:20] for entry in selected_entries])
-slug = re.sub(r'[^a-z0-9]+', '-', titles_for_filename.lower()).strip("-")
-filename = f"{date}-{slug}.md"
-filepath = os.path.join(POSTS_DIR, filename)
+title = entry.title
+link = entry.link
+summary = getattr(entry, "summary", "No summary available.")
 
-post_content = f"---\nlayout: post\ntitle: \"RSS Digest {date}\"\ndate: {date}\n---\n\n"
+# Make summary longer (truncate if very long)
+summary = summary.replace("\n", " ")
+if len(summary) > 500:
+    summary = summary[:500] + "..."
 
-for entry in selected_entries:
-    title = entry.title
-    summary = entry.get("summary", "No summary available.")
-    link = entry.get("link", "#")
-    post_content += f"### {title}\n\n{summary}\n\n[Read more]({link})\n\n---\n\n"
+# Create Jekyll-style markdown file in _posts
+date_str = datetime.utcnow().strftime("%Y-%m-%d")
+timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+slug = title.lower().replace(" ", "-").replace("/", "-")[:50]
 
-# Write the post
-with open(filepath, "w", encoding="utf-8") as f:
-    f.write(post_content)
+filename = f"_posts/{date_str}-{slug}.md"
 
-print(f"✅ New digest post created: {filepath}")
+os.makedirs("_posts", exist_ok=True)
+
+with open(filename, "w", encoding="utf-8") as f:
+    f.write(f"---\n")
+    f.write(f"layout: post\n")
+    f.write(f'title: "{title}"\n')
+    f.write(f"date: {timestamp}\n")
+    f.write(f"---\n\n")
+    f.write(f"{summary}\n\n")
+    f.write(f"[Read more]({link})\n")
+
+print(f"✅ New post created: {filename}")
