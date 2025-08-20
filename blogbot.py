@@ -2,7 +2,6 @@ import feedparser
 import os
 from datetime import datetime
 import random
-import textwrap
 
 # Large, diverse RSS feed list
 RSS_FEEDS = [
@@ -57,18 +56,17 @@ title = entry.title
 link = entry.link
 summary = getattr(entry, "summary", "") or getattr(entry, "description", "No summary available.")
 
-# Make summary longer (approx 500–700 chars)
+# Clean and adjust summary (aim for ~500–700 chars)
 summary = summary.replace("\n", " ")
 if len(summary) > 700:
     summary = summary[:700] + "..."
 elif len(summary) < 500:
-    summary = summary + "..."  # pad short summaries
+    summary = summary + "..."
 
-# Format filename
+# Format filename (Jekyll requires YYYY-MM-DD-title.md)
 date = datetime.utcnow().strftime("%Y-%m-%d")
-timestamp = datetime.utcnow().strftime("%H-%M-%S")
 slug = title.lower().replace(" ", "-").replace("/", "-")[:50]
-filename = f"_posts/{date}-{timestamp}.md"
+filename = f"_posts/{date}-{slug}.md"
 
 # Build post content with source_url
 content = f"""---
