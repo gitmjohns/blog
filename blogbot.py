@@ -8,7 +8,6 @@ RSS_FEEDS = [
     "http://feeds.bbci.co.uk/news/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://www.theguardian.com/world/rss",
-    "https://www.aljazeera.com/xml/rss/all.xml",
     "https://www.reutersagency.com/feed/?best-topics=world&post_type=best",
     "https://www.npr.org/rss/rss.php?id=1004",
     "https://www.wired.com/feed/rss",
@@ -56,28 +55,30 @@ title = entry.title
 link = entry.link
 summary = getattr(entry, "summary", "") or getattr(entry, "description", "No summary available.")
 
-# Clean and adjust summary (aim for ~500–700 chars)
+# Make summary longer (approx 500–700 chars)
 summary = summary.replace("\n", " ")
 if len(summary) > 700:
     summary = summary[:700] + "..."
 elif len(summary) < 500:
-    summary = summary + "..."
+    summary = summary + "..."  # pad short summaries
 
-# Format filename (Jekyll requires YYYY-MM-DD-title.md)
+# Format filename
 date = datetime.utcnow().strftime("%Y-%m-%d")
+timestamp = datetime.utcnow().strftime("%H-%M-%S")
 slug = title.lower().replace(" ", "-").replace("/", "-")[:50]
-filename = f"_posts/{date}-{slug}.md"
+filename = f"_posts/{date}-{timestamp}.md"
 
-# Build post content with source_url
+# Build post content with original source link
 content = f"""---
 layout: post
 title: "{title.replace('"', '')}"
 date: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} +0000
 categories: news
-source_url: {link}
 ---
 
 {summary}
+
+[Read the full article here]({link})
 """
 
 # Ensure _posts exists
