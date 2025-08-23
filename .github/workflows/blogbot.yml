@@ -1,35 +1,39 @@
-name: BlogBot
+name: Auto Blog Bot
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"   # runs every 6 hours
+    # Runs 4 times a day (UTC)
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch: # allows manual run
 
 jobs:
-  run-blogbot:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: "3.10"
 
       - name: Install dependencies
-        run: |
-          pip install feedparser
+        run: pip install feedparser
 
       - name: Run blogbot
-        run: |
-          python blogbot.py
+        run: python blogbot.py
+
+      - name: List _posts folder
+        run: ls -l _posts
 
       - name: Commit new posts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add _posts/*.md || echo "No new posts"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add _posts/
           git commit -m "Add new blog post" || echo "No changes to commit"
           git push
