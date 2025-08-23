@@ -68,12 +68,13 @@ timestamp = datetime.utcnow().strftime("%H-%M-%S")
 slug = title.lower().replace(" ", "-").replace("/", "-")[:50]
 filename = f"_posts/{date}-{timestamp}.md"
 
-# Build post content with original source link
+# Build post content with source_url
 content = f"""---
 layout: post
 title: "{title.replace('"', '')}"
 date: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} +0000
 categories: news
+source_url: {link}
 ---
 
 {summary}
