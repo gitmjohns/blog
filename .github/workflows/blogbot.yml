@@ -1,52 +1,40 @@
-name: BlogBot
+name: Build and Deploy Blog
 
 on:
   schedule:
-    - cron: "0 * * * *"   # Runs every hour
-  workflow_dispatch:      # Allow manual run
+    - cron: "0 * * * *"   # run once per hour
+  workflow_dispatch:       # allow manual runs
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.x"
 
       - name: Install dependencies
-        run: pip install requests pyyaml feedparser
+        run: pip install feedparser
 
-      - name: Run BlogBot script
+      - name: Run blogbot.py
         run: python blogbot.py
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add _posts/
-          git commit -m "Add new post(s)" || echo "No changes to commit"
-          git push
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
+  deploy:
+    environment:
+      name: github-pages   # REQUIRED fix
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
