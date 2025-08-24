@@ -5,6 +5,11 @@ on:
     - cron: "0 * * * *"   # run once per hour
   workflow_dispatch:       # allow manual runs
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write          # 👈 required for deploy-pages
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,8 +35,7 @@ jobs:
 
   deploy:
     environment:
-      name: github-pages   # REQUIRED fix
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: github-pages   # required environment
     runs-on: ubuntu-latest
     needs: build
     steps:
