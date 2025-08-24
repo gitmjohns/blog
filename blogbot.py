@@ -1,102 +1,94 @@
 import feedparser
 import os
 from datetime import datetime
-import hashlib
-import re
+import random
+import textwrap
 
-# List of RSS/Atom feeds to pull from
-FEEDS = [
+# Large, diverse RSS feed list
+RSS_FEEDS = [
+    "http://feeds.bbci.co.uk/news/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+    "https://www.theguardian.com/world/rss",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.reutersagency.com/feed/?best-topics=world&post_type=best",
+    "https://www.npr.org/rss/rss.php?id=1004",
+    "https://www.wired.com/feed/rss",
+    "https://www.nationalgeographic.com/content/nationalgeographic/en_us/news.rss",
+    "https://techcrunch.com/feed/",
+    "https://www.cnn.com/rss/edition_world.rss",
     "https://www.sciencedaily.com/rss/top/science.xml",
-    "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
-    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-    "https://www.theguardian.com/science/rss",
-    "https://www.economist.com/science-and-technology/rss.xml",
-    "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+    "https://www.scientificamerican.com/feed/rss/",
+    "https://www.economist.com/the-world-this-week/rss.xml",
+    "https://www.forbes.com/world/rss2/",
+    "https://www.bloomberg.com/feed/podcast/etf-report.xml",
+    "https://www.vox.com/rss/index.xml",
+    "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+    "https://www.ft.com/?format=rss",
+    "https://www.politico.com/rss/world.xml",
+    "https://www.huffpost.com/section/world-news/feed",
+    "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+    "https://www.engadget.com/rss.xml",
     "https://www.space.com/feeds/all",
-    "https://www.technologyreview.com/feed/",
-    "https://www.wired.com/feed/category/science/latest/rss",
-    "https://www.newscientist.com/feeds/home/",
+    "https://www.sciencemag.org/rss/news_current.xml",
+    "https://www.theverge.com/rss/index.xml",
+    "https://www.latimes.com/world/rss2.0.xml",
+    "https://www.independent.co.uk/news/world/rss",
+    "https://www.usatoday.com/rss/news/world",
+    "https://www.nbcnews.com/id/3032091/device/rss/rss.xml",
+    "https://www.bbc.co.uk/news/technology/rss.xml",
+    "https://www.techradar.com/rss",
+    "https://www.nature.com/subjects/news/rss",
+    "https://www.sciencedaily.com/rss/mind_brain.xml",
+    "https://www.technologyreview.com/feed/"
 ]
 
-# Path to posts folder
-POSTS_DIR = "_posts"
+# Pick a random feed and entry
+feed_url = random.choice(RSS_FEEDS)
+feed = feedparser.parse(feed_url)
 
-def slugify(title):
-    """Make a safe filename from the title"""
-    return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+if not feed.entries:
+    print("⚠️ No articles found in feed.")
+    exit()
 
-def make_post(entry, feed_url):
-    # Title
-    title = entry.get("title", "Untitled").strip()
+entry = random.choice(feed.entries)
 
-    # Extract source URL
-    source_url = None
-    if "link" in entry and entry.link:
-        source_url = entry.link.strip()
-    elif "id" in entry and entry.id:
-        source_url = entry.id.strip()
+# Extract data
+title = entry.title
+link = entry.link  # original source link
+summary = getattr(entry, "summary", "") or getattr(entry, "description", "No summary available.")
 
-    # Ensure fallback
-    if not source_url:
-        source_url = feed_url  # at least link back to feed
+# Make summary longer (approx 500–700 chars)
+summary = summary.replace("\n", " ")
+if len(summary) > 700:
+    summary = summary[:700] + "..."
+elif len(summary) < 500:
+    summary = summary + "..."  # pad short summaries
 
-    # Content (short blurb)
-    summary = entry.get("summary", "")
-    clean_summary = re.sub(r"<.*?>", "", summary).strip()
+# Format filename
+date = datetime.utcnow().strftime("%Y-%m-%d")
+timestamp = datetime.utcnow().strftime("%H-%M-%S")
+slug = title.lower().replace(" ", "-").replace("/", "-")[:50]
+filename = f"_posts/{date}-{timestamp}.md"
 
-    # Date
-    published = None
-    if "published_parsed" in entry and entry.published_parsed:
-        published = datetime(*entry.published_parsed[:6])
-    else:
-        published = datetime.utcnow()
-
-    # Hash ensures unique filenames
-    unique_str = title + source_url
-    hash_id = hashlib.md5(unique_str.encode("utf-8")).hexdigest()[:8]
-
-    # Filename
-    slug = slugify(title)
-    filename = f"{published.strftime('%Y-%m-%d')}-{slug}-{hash_id}.md"
-    filepath = os.path.join(POSTS_DIR, filename)
-
-    if os.path.exists(filepath):
-        print(f"Skipping duplicate: {title}")
-        return
-
-    # Front matter
-    front_matter = f"""---
+# Build post content with source_url
+content = f"""---
 layout: post
-title: "{title.replace('"', "'")}"
-date: {published.strftime('%Y-%m-%d %H:%M:%S %z')}
+title: "{title.replace('"', '')}"
+date: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} +0000
 categories: news
-source_url: {source_url}
+source_url: {link}
 ---
 
-{clean_summary}
+{summary}
 
-[Read the full article here]({source_url})
+[Read the full article here]({link})
 """
 
-    # Save post
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(front_matter)
+# Ensure _posts exists
+os.makedirs("_posts", exist_ok=True)
 
-    print(f"Created: {filename}")
+# Write post
+with open(filename, "w", encoding="utf-8") as f:
+    f.write(content)
 
-def main():
-    os.makedirs(POSTS_DIR, exist_ok=True)
-
-    for feed_url in FEEDS:
-        print(f"Fetching {feed_url} ...")
-        d = feedparser.parse(feed_url)
-
-        if not d.entries:
-            print(f"No entries found in {feed_url}")
-            continue
-
-        for entry in d.entries[:3]:  # limit per feed to avoid overload
-            make_post(entry, feed_url)
-
-if __name__ == "__main__":
-    main()
+print(f"✅ New post created: {filename}")
