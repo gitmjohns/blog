@@ -1,70 +1,102 @@
 import feedparser
 import os
 from datetime import datetime
+import hashlib
+import re
 
-# Full set of RSS feed sources
+# List of RSS/Atom feeds to pull from
 FEEDS = [
-    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-    "https://feeds.bbci.co.uk/news/rss.xml",
-    "https://www.sciencedaily.com/rss/top.xml",
-    "https://www.economist.com/the-world-this-week/rss.xml",
-    "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://www.reutersagency.com/feed/?best-topics=world&post_type=best",
-    "https://www.npr.org/rss/rss.php?id=1004",
-    "https://www.cbsnews.com/latest/rss/world",
-    "https://www.nbcnews.com/id/3032507/device/rss/rss.xml",
-    "https://www.theguardian.com/world/rss",
-    "https://apnews.com/apf-intlnews?format=xml"
+    "https://www.sciencedaily.com/rss/top/science.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://www.theguardian.com/science/rss",
+    "https://www.economist.com/science-and-technology/rss.xml",
+    "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+    "https://www.space.com/feeds/all",
+    "https://www.technologyreview.com/feed/",
+    "https://www.wired.com/feed/category/science/latest/rss",
+    "https://www.newscientist.com/feeds/home/",
 ]
 
+# Path to posts folder
 POSTS_DIR = "_posts"
 
-def slugify(text):
-    return "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")
+def slugify(title):
+    """Make a safe filename from the title"""
+    return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
 
-def fetch_and_create_posts():
+def make_post(entry, feed_url):
+    # Title
+    title = entry.get("title", "Untitled").strip()
+
+    # Extract source URL
+    source_url = None
+    if "link" in entry and entry.link:
+        source_url = entry.link.strip()
+    elif "id" in entry and entry.id:
+        source_url = entry.id.strip()
+
+    # Ensure fallback
+    if not source_url:
+        source_url = feed_url  # at least link back to feed
+
+    # Content (short blurb)
+    summary = entry.get("summary", "")
+    clean_summary = re.sub(r"<.*?>", "", summary).strip()
+
+    # Date
+    published = None
+    if "published_parsed" in entry and entry.published_parsed:
+        published = datetime(*entry.published_parsed[:6])
+    else:
+        published = datetime.utcnow()
+
+    # Hash ensures unique filenames
+    unique_str = title + source_url
+    hash_id = hashlib.md5(unique_str.encode("utf-8")).hexdigest()[:8]
+
+    # Filename
+    slug = slugify(title)
+    filename = f"{published.strftime('%Y-%m-%d')}-{slug}-{hash_id}.md"
+    filepath = os.path.join(POSTS_DIR, filename)
+
+    if os.path.exists(filepath):
+        print(f"Skipping duplicate: {title}")
+        return
+
+    # Front matter
+    front_matter = f"""---
+layout: post
+title: "{title.replace('"', "'")}"
+date: {published.strftime('%Y-%m-%d %H:%M:%S %z')}
+categories: news
+source_url: {source_url}
+---
+
+{clean_summary}
+
+[Read the full article here]({source_url})
+"""
+
+    # Save post
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(front_matter)
+
+    print(f"Created: {filename}")
+
+def main():
     os.makedirs(POSTS_DIR, exist_ok=True)
 
     for feed_url in FEEDS:
-        print(f"Fetching {feed_url}")
-        feed = feedparser.parse(feed_url)
+        print(f"Fetching {feed_url} ...")
+        d = feedparser.parse(feed_url)
 
-        for entry in feed.entries[:3]:  # take up to 3 per feed
-            title = entry.title
-            link = entry.link
-            summary = getattr(entry, "summary", "")[:280]  # trim summary
-            published = getattr(entry, "published", None)
+        if not d.entries:
+            print(f"No entries found in {feed_url}")
+            continue
 
-            # Parse datetime safely
-            try:
-                dt = datetime(*entry.published_parsed[:6])
-            except Exception:
-                dt = datetime.utcnow()
-
-            slug = slugify(title)[:50]
-            filename = f"{POSTS_DIR}/{dt.strftime('%Y-%m-%d')}-{slug}.md"
-
-            if os.path.exists(filename):
-                continue
-
-            # Put the raw source link directly inside the post body
-            blurb = f"{summary}\n\nSource: {link}"
-
-            content = f"""---
-layout: post
-title: "{title}"
-date: {dt.strftime('%Y-%m-%d %H:%M:%S %z')}
-categories: news
-source_url: {link}
----
-
-{blurb}
-"""
-
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            print(f"Created {filename}")
+        for entry in d.entries[:3]:  # limit per feed to avoid overload
+            make_post(entry, feed_url)
 
 if __name__ == "__main__":
-    fetch_and_create_posts()
+    main()
