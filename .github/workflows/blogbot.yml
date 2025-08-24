@@ -1,44 +1,41 @@
-name: Auto Blogbot
+name: Build and Deploy Blog
 
 on:
   schedule:
-    # Runs every 6 hours
-    - cron: '0 */6 * * *'
+    - cron: "0 * * * *"   # every hour
   workflow_dispatch:
 
 jobs:
-  generate_posts:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      # Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.x"
 
-      # Install dependencies
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install feedparser
+        run: pip install requests pyyaml feedparser
 
-      # Run blogbot
       - name: Run blogbot.py
         run: python blogbot.py
 
-      # Commit new posts if any
-      - name: Commit new posts
+      - name: Commit and push changes
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
           git add _posts/
-          git diff-index --quiet HEAD || git commit -m "Add new auto-generated post"
+          git commit -m "Automated post update" || echo "No changes to commit"
           git push
-        env:
-          # Needed if your repo is private
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build site with Jekyll
+        uses: actions/jekyll-build-pages@v1
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
